@@ -13,11 +13,11 @@ import android.widget.ImageView;
 
 public class FlowViewManager {
     private String TAG = "FlowViewManager";
-    private static View mView = null;
-    private static WindowManager mWindowManager = null;
-    private static Context mContext = null;
+    private View mView = null;
+    private WindowManager mWindowManager = null;
+    private Context mContext = null;
 
-    public static Boolean isShown = false;
+    public Boolean isShown = false;
 
     static WindowManager.LayoutParams params;
 
@@ -47,7 +47,6 @@ public class FlowViewManager {
             return;
         }
         isShown = true;
-        Log.i(TAG, "showPopupWindow");
         mContext = context.getApplicationContext();
         mWindowManager = (WindowManager) mContext
                 .getSystemService(Context.WINDOW_SERVICE);
@@ -73,7 +72,6 @@ public class FlowViewManager {
         params.width = 200;
         params.height = 200;
         mWindowManager.addView(mView, params);
-        Log.i(TAG, "add view");
     }
 
     /**
@@ -82,7 +80,6 @@ public class FlowViewManager {
     public void hideStopRecorderIcon() {
         Log.i(TAG, "hide " + isShown + ", " + mView);
         if (isShown && null != mView) {
-            Log.i(TAG, "hidePopupWindow");
             mWindowManager.removeView(mView);
             isShown = false;
         }
@@ -138,9 +135,7 @@ public class FlowViewManager {
     }
 
     public void setScreenRecorder(ScreenRecorder screenRecorder) {
-        Log.d(TAG,"screenRecorder: "+screenRecorder);
         mScreenRecorder = screenRecorder;
-        Log.d(TAG, "mScreenRecorder : " + mScreenRecorder);
     }
 
     public void setButton(Button button) {

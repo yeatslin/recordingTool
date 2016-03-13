@@ -89,7 +89,6 @@ public class MainActivity extends Activity {
             mHeight = 720;
             mFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "",
                     "record-" + mWidth + "x" + mHeight + "-" + System.currentTimeMillis() + ".mp4");
-            Log.d("ScreenRecorder", "file is exist : " + mFile.exists());
             mBitrate = 6000000;
         } catch(Exception e) {
             Log.d(TAG,"exception : "+e);
