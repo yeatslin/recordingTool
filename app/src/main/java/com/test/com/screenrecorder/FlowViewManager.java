@@ -19,13 +19,13 @@ public class FlowViewManager {
 
     public Boolean isShown = false;
 
-    static WindowManager.LayoutParams params;
+    WindowManager.LayoutParams params;
 
-    static ScreenRecorder mScreenRecorder;
+    ScreenRecorder mScreenRecorder;
 
-    static Button mButton;
+    Button mButton;
 
-    static Service mService;
+    Service mService;
 
     private static FlowViewManager mFlowViewManager;
 
