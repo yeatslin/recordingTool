@@ -1,18 +1,33 @@
 package com.test.com.screenrecorder;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
+import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.media.projection.MediaProjection;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.Display;
 import android.view.Surface;
+import android.view.WindowManager;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 
 public class ScreenRecorder extends Thread {
     private static final String TAG = "ScreenRecorder";
@@ -37,8 +52,13 @@ public class ScreenRecorder extends Thread {
     private AtomicBoolean mQuit = new AtomicBoolean(false);
     private MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
     private VirtualDisplay mVirtualDisplay;
+    private Context mContext;
+    private WindowManager mWindowManager;
+    private ImageReader mImageReader;
+    private Handler mHandler = new Handler(Looper.getMainLooper());
+    File mCaptureFile;
 
-    public ScreenRecorder(int width, int height, int bitrate, int dpi, MediaProjection mp, String dstPath) {
+    public ScreenRecorder(WindowManager windowManager ,Context context,int width, int height, int bitrate, int dpi, MediaProjection mp, String dstPath) {
         super(TAG);
         mWidth = width;
         mHeight = height;
@@ -46,6 +66,7 @@ public class ScreenRecorder extends Thread {
         mDpi = dpi;
         mMediaProjection = mp;
         mDstPath = dstPath;
+        mWindowManager = windowManager;
     }
 
 
@@ -54,10 +75,92 @@ public class ScreenRecorder extends Thread {
      */
     public final void quit() {
         mQuit.set(true);
+        captureRelease();
     }
 
     @Override
     public void run() {
+        startRecording();
+        //startCapture();
+    }
+
+    int index =0;
+
+    private void startCapture() {
+        Display display = mWindowManager.getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        mWidth = size.x;
+        mHeight = size.y;
+        mImageReader = ImageReader.newInstance(mWidth, mHeight, PixelFormat.RGBA_8888, 5);
+        mSurface = mImageReader.getSurface();
+        mVirtualDisplay = mMediaProjection.createVirtualDisplay(TAG + "-display",
+                mWidth, mHeight, mDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC,
+                mSurface, null, null);
+        initFile();
+        mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+            @Override
+            public void onImageAvailable(ImageReader reader) {
+                FileOutputStream fos = null;
+                Bitmap bitmap = null;
+                Image img = null;
+                if (mImageReader != null) {
+                    Log.d(TAG, "in OnImageAvailable");
+                    try {
+                        img = reader.acquireLatestImage();
+                        if (img != null) {
+                            Image.Plane[] planes = img.getPlanes();
+                            if (planes[0].getBuffer() == null) {
+                                Log.d(TAG, "can't get image");
+                                return;
+                            }
+                            ByteBuffer buffer = planes[0].getBuffer();
+
+                            int pixelStride = planes[0].getPixelStride();
+                            int rowStride = planes[0].getRowStride();
+                            int rowPadding = rowStride - pixelStride * mWidth;
+                            img.close();
+                            bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.ARGB_8888);
+                            bitmap.copyPixelsFromBuffer(buffer);
+                            fos = new FileOutputStream(mCaptureFile+"/capture_"+index+".jpg");
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                            index++;
+
+                        }
+                    } catch (Exception e) {
+                        Log.d(TAG,"capture Exception e : "+e);
+                    } finally {
+                        if (fos != null) {
+                            try {
+                                fos.close();
+                            } catch (IOException ioe) {
+                                ioe.printStackTrace();
+                            }
+                        }
+
+                        if (bitmap!=null)
+                            bitmap.recycle();
+
+                        if (img!=null)
+                            img.close();
+                    }
+                }
+            }
+        },mHandler);
+    }
+
+    private void initFile() {
+        mCaptureFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/captureTesting/");
+        if(!mCaptureFile.exists()) {
+            mCaptureFile.mkdir();
+        }
+    }
+
+    //-------------------------------
+
+
+    //Recording feature
+    private void startRecording() {
         try {
             try {
                 prepareEncoder();
@@ -73,7 +176,7 @@ public class ScreenRecorder extends Thread {
             recordVirtualDisplay();
 
         } finally {
-            release();
+            recorderRelease();
         }
     }
 
@@ -161,7 +264,22 @@ public class ScreenRecorder extends Thread {
         mEncoder.start();
     }
 
-    private void release() {
+    private void captureRelease() {
+        if (mVirtualDisplay != null) {
+            mVirtualDisplay.release();
+        }
+        if (mMediaProjection != null) {
+            mMediaProjection.stop();
+        }
+        if (mImageReader != null) {
+            mImageReader.setOnImageAvailableListener(null, null);
+            mImageReader.close();
+            mImageReader = null;
+        }
+        index = 0;
+    }
+
+    private void recorderRelease() {
         if (mEncoder != null) {
             mEncoder.stop();
             mEncoder.release();

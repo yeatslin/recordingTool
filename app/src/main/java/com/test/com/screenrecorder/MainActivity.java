@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
             return;
         }
         initialParameter();
-        mRecorder = new ScreenRecorder(mWidth, mHeight, mBitrate, 1, mediaProjection, mFile.getAbsolutePath());
+        mRecorder = new ScreenRecorder(getWindowManager(),getApplicationContext(),mWidth, mHeight, mBitrate, 1, mediaProjection, mFile.getAbsolutePath());
         mRecorder.start();
         mButton.setText("Stop Recorder");
         mFlowViewManager.setScreenRecorder(mRecorder);
